@@ -1,0 +1,510 @@
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js" type="application/javascript"></script>
+</head>
+<style>
+       
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: black; 
+            color: white; 
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            text-align: center;
+            background-color: #252525; 
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            margin-top: 20px; 
+        }
+
+        h1 {
+            color: #a71111;
+        }
+
+        h2 {
+            color: #a71111;
+        }
+
+        label {
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button[type="button"] {
+            background-color: #330505;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button[type="button"]:hover {
+            background-color: #0056b3;
+        }
+
+        #contractData p {
+            text-align: left;
+        }
+
+        #transferResult,
+        #approvalResult,
+        #allowanceResult,
+        #balanceResult {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: rgb(0, 0, 0);
+            color: rgb(255, 254, 254); 
+        }
+    
+</style>
+<body>
+    <div class="container">
+        <h1>Smart Contract Data</h1>
+        <div id="contractData">
+            <p><strong>Name:</strong> <span id="name"></span></p>
+            <p><strong>Symbol:</strong> <span id="symbol"></span></p>
+            <p><strong>Total Supply:</strong> <span id="totalSupply"></span></p>
+            <p><strong>Balance of Your Address:</strong> <span id="balanceOf"></span></p>
+        </div>
+    </div>
+    <div class="container">
+        <h2>Transfer Tokens</h2>
+        <form id="transfer">
+            <label for="transferRecipient">Recipient Address:</label>
+            <input type="text" id="transferRecipient" required>
+            <br>
+            <label for="transferAmount">Amount:</label>
+            <input type="number" id="transferAmount" required>
+            <br>
+            <button type="button" onclick="transferTokens()">Transfer</button>
+        </form>
+        <div id="transferResult">
+            <!-- Transfer  -->
+        </div>
+    </div>
+    <div class="container">
+        <h2>Approve Spender</h2>
+        <form id="approveForm">
+            <label for="spender">Spender Address:</label>
+            <input type="text" id="spender" required>
+            <br>
+            <label for="approvalAmount">Approval Amount:</label>
+            <input type="number" id="approvalAmount" required>
+            <br>
+            <button type="button" onclick="approveSpender()">Approve</button>
+        </form>
+        <div id="approvalResult">
+            <!-- Approval  -->
+        </div>
+    </div>
+    <div class="container">
+        <h2>Check Allowance</h2>
+        <form id="allowanceForm">
+            <label for="allowanceOwner">Owner Address:</label>
+            <input type="text" id="allowanceOwner" required>
+            <br>
+            <label for="allowanceSpender">Spender Address:</label>
+            <input type="text" id="allowanceSpender" required>
+            <br>
+            <button type="button" onclick="checkAllowance()">Check Allowance</button>
+        </form>
+        <div id="allowanceResult">
+            <!-- Allowance  -->
+        </div>
+    </div>
+    <div class="container">
+        <h2>Check Balance</h2>
+        <form id="balanceForm">
+            <label for="balanceAccount">Account Address:</label>
+            <input type="text" id="balanceAccount" required>
+            <br>
+            <button type="button" onclick="checkBalance()">Check Balance</button>
+        </form>
+        <div id="balanceResult">
+            <!-- Balance  -->
+        </div>
+    </div>
+</body>
+
+<script>
+    let contAddr = "0x26FD9fcC0198D7416364658A89Ef506c12D8Fa10";
+    let contAbi =[
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "initialSupply",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "Approval",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "approve",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "recipient",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "transfer",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "from",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "to",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "value",
+				"type": "uint256"
+			}
+		],
+		"name": "Transfer",
+		"type": "event"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "sender",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "recipient",
+				"type": "address"
+			},
+			{
+				"internalType": "uint256",
+				"name": "amount",
+				"type": "uint256"
+			}
+		],
+		"name": "transferFrom",
+		"outputs": [
+			{
+				"internalType": "bool",
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "owner",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "spender",
+				"type": "address"
+			}
+		],
+		"name": "allowance",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "account",
+				"type": "address"
+			}
+		],
+		"name": "balanceOf",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "decimals",
+		"outputs": [
+			{
+				"internalType": "uint8",
+				"name": "",
+				"type": "uint8"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "name",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "symbol",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "totalSupply",
+		"outputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+];
+
+
+    let cmnd = window.ethereum;
+    if (cmnd) {
+        let provider = new ethers.providers.Web3Provider(cmnd);
+        let fun = async () => {
+            try {
+                let req = await provider.send("eth_requestAccounts", []);
+                let signer = provider.getSigner();
+                const contract = new ethers.Contract(contAddr, contAbi, signer);
+                let name = await contract.name();
+                    document.getElementById("name").textContent = name;
+
+                    let symbol = await contract.symbol();
+                    document.getElementById("symbol").textContent = symbol;
+
+                    let supply = await contract.totalSupply();
+                    document.getElementById("totalSupply").textContent = ethers.utils.formatEther(supply);
+
+                    let balanceOf = await contract.balanceOf("0xA3C9FB5E6287542f189e22A2F5b5cedB63647920");
+                    document.getElementById("balanceOf").textContent = ethers.utils.formatEther(balanceOf);
+					
+					// // let transfer= await contract.transfer("0xAf1b0E4807f4dCcfcD0524B6b75952825670dD8c","100");
+                    // document.getElementById("transfer").textContent = ethers.utils.formatEther(transfer);
+            } catch (e) {
+                console.log(e)
+            }
+        }
+        fun();
+
+
+		transferTokens=async() => {
+			
+    // const sender = document.getElementById("transferSender").value;
+    const recipient = document.getElementById("transferRecipient").value;
+    const amount = document.getElementById("transferAmount").value;
+
+    try {
+		let req = await provider.send("eth_requestAccounts", []);
+                let signer = provider.getSigner();
+                const contract = new ethers.Contract(contAddr, contAbi, signer);
+        const tx = await contract.transfer( recipient, amount);
+        await tx.wait();
+        console.log("Transfer successful");
+		document.getElementById("transferResult").innerHTML =
+                    "Transfer of " + amount + " Tokens to " + recipient + " successful.";
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+ approveSpender=async()=> {
+    const spender = document.getElementById("spender").value;
+    const approvalAmount = document.getElementById("approvalAmount").value;
+
+    try {
+		let req = await provider.send("eth_requestAccounts", []);
+                let signer = provider.getSigner();
+                const contract = new ethers.Contract(contAddr, contAbi, signer);
+		const approvalAmountWei = ethers.utils.parseUnits(approvalAmount, 18);
+
+                // Approve spender
+                const tx = await contract.approve(spender, approvalAmountWei);
+                await tx.wait();
+
+                console.log("Approval successful");
+                document.getElementById("approvalResult").innerHTML = "Approval successful for " + approvalAmount + " Tokens";
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+checkAllowance=async()=> {
+    const owner = document.getElementById("allowanceOwner").value;
+    const spender = document.getElementById("allowanceSpender").value;
+
+    try {
+		let req = await provider.send("eth_requestAccounts", []);
+                let signer = provider.getSigner();
+                const contract = new ethers.Contract(contAddr, contAbi, signer);
+      
+	
+        const allowanceAmount = await contract.allowance(owner, spender);
+        console.log("Allowance Amount: " + ethers.utils.formatEther(allowanceAmount));
+		const formattedAllowance = ethers.utils.formatUnits(allowanceAmount, 18);
+
+console.log("Allowance Amount: " + formattedAllowance + " Tokens");
+document.getElementById("allowanceResult").innerHTML = "Allowance: " + formattedAllowance + " Tokens";
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+ checkBalance=async() => {
+    const account = document.getElementById("balanceAccount").value;
+
+	console.log(account);
+	
+	
+    try {
+		let req = await provider.send("eth_requestAccounts", []);
+                let signer = provider.getSigner();
+                const contract = new ethers.Contract(contAddr, contAbi, signer);
+		let balance = await contract.balanceOf(account);
+		const formattedBalance = ethers.utils.formatUnits(balance, 18);
+
+console.log("Balance: " + formattedBalance);
+document.getElementById("balanceResult").innerHTML = "Balance: " + formattedBalance + " Tokens";
+        
+        
+    } catch (e) {
+        console.error(e);
+    }
+}
+
+    } else {
+        console.log("Install Meta Mask")
+    }
+
+
+
+
+</script>
+
+</html>
